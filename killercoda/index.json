@@ -1,0 +1,20 @@
+{
+  "title": "CrowdSec Log Replay",
+  "description": "Replay log files through CrowdSec and view generated alerts",
+  "backend": {
+    "imageid": "ubuntu"
+  },
+  "interface": {
+    "layout": "tab-split"
+  },
+  "details": {
+    "intro": {
+      "text": "intro.md"
+    },
+    "finish": {
+      "text": "finish.md",
+      "background": "background.sh",
+      "foreground": "foreground.sh"
+    }
+  }
+}

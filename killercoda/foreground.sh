@@ -1,0 +1,1 @@
+clear; echo "Setting up environment..."; s=0; while [ ! -f /tmp/.setup-complete ]; do sleep 5; s=$((s+5)); printf "\r%d seconds elapsed..." $s; done; echo ""; echo ""; echo "=== READY ==="; echo "Click the link in the instructions panel to open the GUI."

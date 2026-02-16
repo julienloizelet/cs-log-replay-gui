@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+
+# Build output
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Temporary files
+tmp/
+*.tmp
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+
+# Claude
+.claude/*.local*
