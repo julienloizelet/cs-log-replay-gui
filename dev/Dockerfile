@@ -1,0 +1,1 @@
+FROM crowdsecurity/crowdsec:latest

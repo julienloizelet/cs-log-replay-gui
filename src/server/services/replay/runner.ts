@@ -1,9 +1,23 @@
 import { spawn } from 'child_process';
-import { writeFile, unlink } from 'fs/promises';
+import { writeFile, unlink, mkdir } from 'fs/promises';
 import { randomUUID } from 'crypto';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import type { ReplayResult, OutputCallback } from './types.js';
+import { MAX_EXPLAIN_LINES, type ReplayResult, type OutputCallback } from './types.js';
+
+const IS_DEV = process.env.IS_DEV === 'true';
+const CONTAINER_NAME = 'crowdsec-dev';
+// Host-side dir (user-writable, inside the project)
+const HOST_LOG_DIR = join(process.cwd(), 'dev', 'tmp');
+// Container-side mount point (must match docker-compose volume)
+const CONTAINER_LOG_DIR = '/tmp/crowdsec-replay';
+
+function buildCommand(command: string, args: string[]): [string, string[]] {
+  if (IS_DEV) {
+    return ['docker', ['exec', CONTAINER_NAME, command, ...args]];
+  }
+  return ['sudo', [command, ...args]];
+}
 
 function runCommand(
   command: string,
@@ -46,21 +60,38 @@ export async function replayLogs(
   logType: string,
   onOutput: OutputCallback,
 ): Promise<ReplayResult> {
-  const tempFile = join(tmpdir(), `replay-${randomUUID()}.log`);
+  // In dev mode, write to dev/tmp/ (user-owned) which is mounted into the container
+  const fileName = `replay-${randomUUID()}.log`;
+  const hostTempFile = IS_DEV ? join(HOST_LOG_DIR, fileName) : join(tmpdir(), fileName);
+  // Path used in CrowdSec commands (container path in dev, same as host in prod)
+  const cmdTempFile = IS_DEV ? join(CONTAINER_LOG_DIR, fileName) : hostTempFile;
+  if (IS_DEV) {
+    await mkdir(HOST_LOG_DIR, { recursive: true });
+  }
 
   try {
-    // Write log content to temp file
-    await writeFile(tempFile, logContent, 'utf-8');
-    onOutput({ type: 'stdout', data: `Wrote log to ${tempFile}\n` });
+    // Write log content to temp file on host
+    await writeFile(hostTempFile, logContent, 'utf-8');
+    onOutput({ type: 'stdout', data: `Wrote log to ${hostTempFile}\n` });
+
+    if (IS_DEV) {
+      onOutput({ type: 'stdout', data: `(dev mode: using Docker container "${CONTAINER_NAME}")\n` });
+    }
+
+    // Step 0: Clear previous alerts
+    const [deleteCmd, deleteArgs] = buildCommand('cscli', ['alerts', 'delete', '--all']);
+    onOutput({ type: 'stdout', data: `\nClearing previous alerts...\n` });
+    onOutput({ type: 'stdout', data: `Running: ${deleteCmd} ${deleteArgs.join(' ')}\n` });
+    await runCommand(deleteCmd, deleteArgs, onOutput);
 
     // Step 1: Replay logs through CrowdSec
-    onOutput({ type: 'stdout', data: `\nRunning: sudo crowdsec --dsn file://${tempFile} --type ${logType} --no-api\n` });
-    const replayResult = await runCommand('sudo', [
-      'crowdsec',
-      '--dsn', `file://${tempFile}`,
+    const [replayCmd, replayArgs] = buildCommand('crowdsec', [
+      '--dsn', `file://${cmdTempFile}`,
       '--type', logType,
       '--no-api',
-    ], onOutput);
+    ]);
+    onOutput({ type: 'stdout', data: `\nRunning: ${replayCmd} ${replayArgs.join(' ')}\n` });
+    const replayResult = await runCommand(replayCmd, replayArgs, onOutput);
 
     if (replayResult.exitCode !== 0) {
       onOutput({ type: 'error', data: `CrowdSec replay exited with code ${replayResult.exitCode}\n` });
@@ -69,10 +100,9 @@ export async function replayLogs(
     }
 
     // Step 2: Fetch alerts
-    onOutput({ type: 'stdout', data: '\nRunning: sudo cscli alerts list -o json\n' });
-    const alertsResult = await runCommand('sudo', [
-      'cscli', 'alerts', 'list', '-o', 'json',
-    ], onOutput);
+    const [alertsCmd, alertsArgs] = buildCommand('cscli', ['alerts', 'list', '-o', 'json']);
+    onOutput({ type: 'stdout', data: `\nRunning: ${alertsCmd} ${alertsArgs.join(' ')}\n` });
+    const alertsResult = await runCommand(alertsCmd, alertsArgs, onOutput);
 
     let alerts: ReplayResult['alerts'] = [];
     if (alertsResult.stdout.trim()) {
@@ -84,15 +114,36 @@ export async function replayLogs(
       }
     }
 
-    // Step 3: Run cscli explain
-    onOutput({ type: 'stdout', data: `\nRunning: sudo cscli explain -f ${tempFile} -t ${logType}\n` });
-    const explainResult = await runCommand('sudo', [
-      'cscli', 'explain', '-f', tempFile, '-t', logType,
-    ], onOutput);
+    // Step 3: Run cscli explain (limited to first N lines)
+    const allLines = logContent.split('\n');
+    const explainLines = allLines.slice(0, MAX_EXPLAIN_LINES);
+    const truncated = allLines.length > MAX_EXPLAIN_LINES;
+
+    // Write truncated file for explain
+    const explainFileName = `explain-${randomUUID()}.log`;
+    const hostExplainFile = IS_DEV ? join(HOST_LOG_DIR, explainFileName) : join(tmpdir(), explainFileName);
+    const cmdExplainFile = IS_DEV ? join(CONTAINER_LOG_DIR, explainFileName) : hostExplainFile;
+    await writeFile(hostExplainFile, explainLines.join('\n'), 'utf-8');
+
+    if (truncated) {
+      onOutput({ type: 'stdout', data: `\nExplain limited to first ${MAX_EXPLAIN_LINES} lines (${allLines.length} total).\n` });
+    }
+
+    const [explainCmd, explainArgs] = buildCommand('cscli', ['explain', '-f', cmdExplainFile, '-t', logType]);
+    onOutput({ type: 'stdout', data: `\nRunning: ${explainCmd} ${explainArgs.join(' ')}\n` });
+    const explainResult = await runCommand(explainCmd, explainArgs, onOutput);
+
+    // Clean up explain temp file
+    try { await unlink(hostExplainFile); } catch { /* ignore */ }
 
     const result: ReplayResult = {
       alerts,
+      replayCommand: `${replayCmd} ${replayArgs.join(' ')}`,
+      alertsCommand: `${alertsCmd} ${alertsArgs.join(' ')}`,
       explainOutput: explainResult.stdout,
+      explainCommand: `${explainCmd} ${explainArgs.join(' ')}`,
+      totalLines: allLines.filter((l) => l.trim().length > 0).length,
+      explainedLines: explainLines.filter((l) => l.trim().length > 0).length,
     };
 
     // Send results as JSON between markers
@@ -109,7 +160,7 @@ export async function replayLogs(
   } finally {
     // Clean up temp file
     try {
-      await unlink(tempFile);
+      await unlink(hostTempFile);
     } catch {
       // Ignore cleanup errors
     }

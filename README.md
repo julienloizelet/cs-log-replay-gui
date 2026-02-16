@@ -7,7 +7,7 @@ Built with React + Vite frontend and Express + Socket.IO backend.
 ## Requirements
 
 - Node.js >= 18
-- CrowdSec installed locally with NGINX and LINUX collections
+- Docker and Docker Compose (for local development)
 
 ## Quick Start
 
@@ -17,8 +17,17 @@ npm run dev
 ```
 
 This starts:
+- **CrowdSec** Docker container with NGINX and LINUX collections
 - **Client** dev server on http://localhost:5173
-- **Server** on http://localhost:3000
+- **Server** on http://localhost:3000 (with `IS_DEV=true`)
+
+No need to install CrowdSec on your host — commands run inside the Docker container via `docker exec`.
+
+To stop the Docker container after development:
+
+```bash
+npm run dev:stop
+```
 
 ## Usage
 
@@ -33,9 +42,11 @@ This starts:
 ## Commands
 
 ```bash
-npm run dev          # Start dev servers (client :5173, server :3000)
+npm run dev          # Start CrowdSec Docker + dev servers (client :5173, server :3000)
+npm run dev:docker   # Start only the CrowdSec Docker container
+npm run dev:stop     # Stop the CrowdSec Docker container
 npm run build        # Build for production
-npm start            # Run production server
+npm start            # Run production server (no Docker, expects local CrowdSec)
 npm run lint         # Run ESLint
 npx playwright test  # Run e2e tests
 ```

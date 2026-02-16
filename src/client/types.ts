@@ -50,5 +50,10 @@ export interface Alert {
 
 export interface ReplayResult {
   alerts: Alert[];
+  replayCommand: string;
+  alertsCommand: string;
   explainOutput: string;
+  explainCommand: string;
+  totalLines: number;
+  explainedLines: number;
 }

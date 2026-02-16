@@ -3,7 +3,7 @@ export const LOG_TYPES: Record<string, string> = {
   "Syslog (SSH/Linux)": "syslog",
 };
 
-export const MAX_LOG_LINES = 10;
+export const MAX_EXPLAIN_LINES = 10;
 
 export interface AlertDecision {
   duration: string;
@@ -49,7 +49,12 @@ export interface Alert {
 
 export interface ReplayResult {
   alerts: Alert[];
+  replayCommand: string;
+  alertsCommand: string;
   explainOutput: string;
+  explainCommand: string;
+  totalLines: number;
+  explainedLines: number;
 }
 
 export interface CommandOutput {

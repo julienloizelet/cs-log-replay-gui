@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ReplayResult, Alert } from '../types';
 
 interface ResultsViewProps {
@@ -55,7 +56,11 @@ function AlertCard({ alert }: { alert: Alert }) {
 }
 
 export function ResultsView({ result, onBack, onNewReplay }: ResultsViewProps) {
-  const { alerts, explainOutput } = result;
+  const { alerts, replayCommand, alertsCommand, explainOutput, explainCommand, totalLines, explainedLines } = result;
+  const wasTruncated = totalLines > explainedLines;
+  const [showExplain, setShowExplain] = useState(false);
+  const [showAlertCmds, setShowAlertCmds] = useState(false);
+  const [showExplainCmd, setShowExplainCmd] = useState(false);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -85,7 +90,7 @@ export function ResultsView({ result, onBack, onNewReplay }: ResultsViewProps) {
               No alerts were generated from these log lines.
             </p>
             <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-              This means the log lines did not trigger any CrowdSec scenarios.
+              This means the log lines did not trigger any installed CrowdSec scenarios.
             </p>
           </div>
         ) : (
@@ -95,21 +100,74 @@ export function ResultsView({ result, onBack, onNewReplay }: ResultsViewProps) {
             ))}
           </div>
         )}
+
+        <div className="mt-4">
+          <button
+            onClick={() => setShowAlertCmds(!showAlertCmds)}
+            className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            {showAlertCmds ? 'Hide executed commands' : 'Show executed commands'}
+          </button>
+          {showAlertCmds && (
+            <div className="mt-2 space-y-1">
+              <code className="block bg-gray-100 dark:bg-gray-900 rounded-md px-3 py-2 font-mono text-xs text-gray-700 dark:text-gray-300 break-all">
+                {replayCommand}
+              </code>
+              <code className="block bg-gray-100 dark:bg-gray-900 rounded-md px-3 py-2 font-mono text-xs text-gray-700 dark:text-gray-300 break-all">
+                {alertsCommand}
+              </code>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Explain output section */}
       <div className="card mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Explain Output
-        </h3>
-        {explainOutput.trim() ? (
-          <pre className="bg-gray-100 dark:bg-gray-900 rounded-md p-4 font-mono text-sm overflow-x-auto whitespace-pre-wrap text-gray-700 dark:text-gray-300">
-            {explainOutput}
-          </pre>
-        ) : (
-          <p className="text-gray-500 dark:text-gray-400 text-sm">
-            No explain output available.
-          </p>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Explain Output
+          </h3>
+          <button
+            onClick={() => setShowExplain(!showExplain)}
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            {showExplain ? 'Hide details' : 'Show details'}
+          </button>
+        </div>
+
+        {showExplain && (
+          <div className="mt-4">
+            {wasTruncated && (
+              <p className="mb-3 text-sm text-amber-700 dark:text-amber-400">
+                Only the first {explainedLines} of {totalLines} lines were explained.
+              </p>
+            )}
+            {explainOutput.trim() ? (
+              <pre className="bg-gray-100 dark:bg-gray-900 rounded-md p-4 font-mono text-sm overflow-x-auto whitespace-pre-wrap text-gray-700 dark:text-gray-300">
+                {explainOutput}
+              </pre>
+            ) : (
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                No explain output available.
+              </p>
+            )}
+
+            <div className="mt-3">
+              <button
+                onClick={() => setShowExplainCmd(!showExplainCmd)}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                {showExplainCmd ? 'Hide executed command' : 'Show executed command'}
+              </button>
+              {showExplainCmd && (
+                <div className="mt-2">
+                  <code className="block bg-gray-100 dark:bg-gray-900 rounded-md px-3 py-2 font-mono text-xs text-gray-700 dark:text-gray-300 break-all">
+                    {explainCommand}
+                  </code>
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
 

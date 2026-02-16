@@ -5,7 +5,7 @@ const LOG_TYPES: Record<string, string> = {
   "Syslog (SSH/Linux)": "syslog",
 };
 
-const MAX_LOG_LINES = 10;
+const MAX_EXPLAIN_LINES = 10;
 const MAX_FILE_SIZE = 1024 * 1024; // 1MB
 
 // Binary file magic bytes signatures
@@ -63,21 +63,14 @@ export function LogInputForm({ onSubmit }: LogInputFormProps) {
     return logText.split('\n').filter((l) => l.trim().length > 0).length;
   }, [logText]);
 
-  const isOverLimit = lineCount > MAX_LOG_LINES;
-
   const resolvedType = selectedType === '__custom__' ? customType.trim() : selectedType;
-  const isValid = logText.trim().length > 0 && resolvedType.length > 0 && !isOverLimit;
+  const isValid = logText.trim().length > 0 && resolvedType.length > 0;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     clearErrors();
 
     if (!isValid) {
-      return;
-    }
-
-    if (isOverLimit) {
-      setInputError(`Too many lines (${lineCount}). Maximum is ${MAX_LOG_LINES}.`);
       return;
     }
 
@@ -110,13 +103,6 @@ export function LogInputForm({ onSubmit }: LogInputFormProps) {
 
       const decoder = new TextDecoder('utf-8');
       const content = decoder.decode(bytes);
-
-      const lines = content.split('\n').filter((l) => l.trim().length > 0);
-      if (lines.length > MAX_LOG_LINES) {
-        setFileError(`File has ${lines.length} lines. Maximum is ${MAX_LOG_LINES}.`);
-        clearFileInput();
-        return;
-      }
 
       setLogText(content);
     };
@@ -157,13 +143,17 @@ export function LogInputForm({ onSubmit }: LogInputFormProps) {
       <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
         <p className="text-sm text-blue-800 dark:text-blue-300">
           <strong>Installed collections:</strong> NGINX and LINUX. This tool detects behaviors on nginx and ssh log lines.
+          You can <a href="https://docs.crowdsec.net/docs/next/cscli/cscli_collections/" target="_blank" rel="noopener noreferrer" className="underline font-medium">install other collections</a> to support custom log types (e.g. apache2).
         </p>
       </div>
 
-      {/* Warning banner */}
-      <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md">
+      {/* Warning banners */}
+      <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md space-y-1">
         <p className="text-sm text-amber-800 dark:text-amber-300">
-          This tool is designed for <strong>line-by-line debugging</strong>. Maximum {MAX_LOG_LINES} lines.
+          All existing alerts will be <strong>deleted</strong> before each replay.
+        </p>
+        <p className="text-sm text-amber-800 dark:text-amber-300">
+          The <strong>explain</strong> output is limited to the first {MAX_EXPLAIN_LINES} lines. All lines are replayed for alert generation.
         </p>
       </div>
 
@@ -201,13 +191,13 @@ export function LogInputForm({ onSubmit }: LogInputFormProps) {
             <label htmlFor="logs" className="label">
               Log Content
             </label>
-            <span className={`text-sm ${isOverLimit ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
-              {lineCount}/{MAX_LOG_LINES} lines
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              {lineCount} line{lineCount !== 1 ? 's' : ''}
             </span>
           </div>
           <textarea
             id="logs"
-            className={`textarea h-48 ${isOverLimit ? 'border-red-500 dark:border-red-500 focus:ring-red-500' : ''}`}
+            className="textarea h-48"
             placeholder={'192.168.1.1 - - [01/Jan/2024:00:00:00 +0000] "GET /admin HTTP/1.1" 200 512\n...'}
             value={logText}
             onChange={(e) => {

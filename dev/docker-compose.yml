@@ -1,0 +1,15 @@
+services:
+  crowdsec:
+    build: .
+    container_name: crowdsec-dev
+    environment:
+      - COLLECTIONS=crowdsecurity/linux crowdsecurity/nginx
+    volumes:
+      - ./tmp:/tmp/crowdsec-replay
+      - crowdsec-data:/var/lib/crowdsec/data
+      - crowdsec-config:/etc/crowdsec
+    restart: unless-stopped
+
+volumes:
+  crowdsec-data:
+  crowdsec-config:

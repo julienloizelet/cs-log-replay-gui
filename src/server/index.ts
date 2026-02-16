@@ -3,7 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { replayLogs, MAX_LOG_LINES, type ReplayResult } from './services/replay/index.js';
+import { replayLogs, type ReplayResult } from './services/replay/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -53,16 +53,6 @@ io.on('connection', (socket) => {
 
     if (!logType || logType.trim().length === 0) {
       socket.emit('output', { type: 'error', data: 'Log type is required.' });
-      socket.emit('output', { type: 'exit', data: 'Validation failed', code: 1 });
-      return;
-    }
-
-    const lines = logContent.split('\n').filter((l: string) => l.trim().length > 0);
-    if (lines.length > MAX_LOG_LINES) {
-      socket.emit('output', {
-        type: 'error',
-        data: `Too many lines (${lines.length}). Maximum is ${MAX_LOG_LINES}.`,
-      });
       socket.emit('output', { type: 'exit', data: 'Validation failed', code: 1 });
       return;
     }

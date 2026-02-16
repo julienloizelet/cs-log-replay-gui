@@ -8,12 +8,16 @@ GUI application for CrowdSec log replay debugging. Users upload a small log file
 
 **Key difference from IPDEX GUI**: This tool does NOT call a remote API. It executes local CrowdSec CLI commands (`crowdsec`, `cscli`) on the server where the app runs (typically a KillerCoda instance with CrowdSec pre-installed).
 
+**Dev mode (`IS_DEV=true`)**: In local development, CrowdSec runs in a Docker container (`crowdsec-dev`). The server uses `docker exec` to run commands inside the container instead of `sudo` on the host. Temp log files are written to `/tmp/crowdsec-replay/` which is bind-mounted into the container.
+
 ## Commands
 
 ```bash
-npm run dev          # Start dev servers (client :5173, server :3000)
+npm run dev          # Start CrowdSec Docker container + dev servers (client :5173, server :3000)
+npm run dev:docker   # Start only the CrowdSec Docker container
+npm run dev:stop     # Stop the CrowdSec Docker container
 npm run build        # Build for production
-npm start            # Run production server
+npm start            # Run production server (no Docker, expects local CrowdSec)
 npm run lint         # Run ESLint
 npx playwright test  # Run e2e tests
 ```
@@ -42,11 +46,15 @@ src/
         ├── index.ts         # Service exports
         ├── runner.ts        # CrowdSec command execution (crowdsec, cscli)
         └── types.ts         # Type definitions for alerts, log types, etc.
+dev/
+├── README.md                # Dev environment documentation
+├── Dockerfile               # CrowdSec Docker image
+└── docker-compose.yml       # Docker Compose for local CrowdSec
 killercoda/
 ├── index.json               # KillerCoda scenario config
 ├── intro.md                 # Introduction page
 ├── finish.md                # Finish page
-├── env-init.sh              # Background setup (install CrowdSec + collections)
+├── background.sh            # Background setup (install CrowdSec + collections)
 └── foreground.sh            # Foreground progress display
 ```
 
@@ -54,10 +62,10 @@ killercoda/
 
 1. **Log input** — User pastes or uploads a log file (max 10 lines). Selects log type via checkboxes (nginx, syslog, or custom). An info banner explains that the installed collections are NGINX and LINUX, so the tool detects behaviors on nginx and ssh.
 2. **Replay execution** — Server writes logs to a temp file and runs:
-   - `sudo crowdsec --dsn file://<path> --type <type> --no-api` (replay)
-   - `sudo cscli alerts list -o json` (fetch generated alerts)
-   - `sudo cscli explain -f <path> -t <type>` (line-by-line explanation)
-   Progress is streamed in real-time via Socket.IO.
+   - `crowdsec --dsn file://<path> --type <type> --no-api` (replay)
+   - `cscli alerts list -o json` (fetch generated alerts)
+   - `cscli explain -f <path> -t <type>` (line-by-line explanation)
+   Commands are prefixed with `sudo` in production (KillerCoda) or `docker exec crowdsec-dev` in dev mode (`IS_DEV=true`). Progress is streamed in real-time via Socket.IO.
 3. **Results display** — Shows alerts (JSON) and the explain output. A notice warns this is for line-by-line debugging only.
 
 ## Log Type Mapping
@@ -76,7 +84,8 @@ Users can also enter a custom type string for types not in the list.
 
 ## Validation Rules
 
-- Log content (textarea or file) must be **10 lines or fewer**. Display an error if exceeded — replaying large files takes too long for interactive debugging.
+- Log content (textarea or file) has no line count limit. All lines are replayed for alert generation.
+- The **explain** output is limited to the **first 10 lines** (`MAX_EXPLAIN_LINES`). The runner writes a separate truncated temp file for `cscli explain`.
 - At least one log type must be selected or a custom type provided.
 
 ## Real-time Communication
