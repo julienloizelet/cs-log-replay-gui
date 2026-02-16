@@ -46,6 +46,11 @@ src/
         ├── index.ts         # Service exports
         ├── runner.ts        # CrowdSec command execution (crowdsec, cscli)
         └── types.ts         # Type definitions for alerts, log types, etc.
+doc/
+└── DEVELOPER.md             # Developer guide for local development
+e2e/
+├── helpers.ts               # Test helper functions (submitLogs, flowToResults)
+└── nginx-replay.spec.ts     # NGINX log replay e2e tests (CVE-2017-9841)
 dev/
 ├── README.md                # Dev environment documentation
 ├── Dockerfile               # CrowdSec Docker image
@@ -118,6 +123,7 @@ Reference: [LaurenceJJones/workshop-katacoda/crowdsec-setup](https://github.com/
 When implementing a new feature, update all relevant documentation:
 - **`CLAUDE.md`** — Update the architecture tree and any affected sections.
 - **`README.md`** — Update the usage section if the feature is user-facing.
+- **`doc/DEVELOPER.md`** — Update if the change affects local development setup or workflow.
 
 ## Testing
 
