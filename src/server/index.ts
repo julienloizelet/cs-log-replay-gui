@@ -20,6 +20,7 @@ const io = new Server(server, {
         methods: ['GET', 'POST'],
       }
     : undefined,
+  maxHttpBufferSize: 5e6, // 5MB – default 1MB is too small for large IP lists
 });
 
 app.use(express.json());
