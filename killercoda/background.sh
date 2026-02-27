@@ -35,7 +35,7 @@ npm --version
 echo "Setting up Log Replay GUI..."
 mkdir -p /root/cs-log-replay-gui
 cd /root/cs-log-replay-gui
-git clone https://github.com/julienloizelet/cs-log-replay-gui.git ./
+git clone https://github.com/crowdsecurity/cs-log-replay-gui.git ./
 npm install
 npm run build
 
