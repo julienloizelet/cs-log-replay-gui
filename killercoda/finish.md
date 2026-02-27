@@ -8,7 +8,7 @@ Watch the terminal for progress. When you see **"READY"**, open the GUI.
 
 ## Using the GUI
 
-1. Paste or upload a log file (max 10 lines)
+1. Paste or upload a log file
 2. Select the log type (NGINX, Syslog, or custom)
 3. Click **Replay Logs** to see alerts and explanations
 
